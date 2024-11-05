@@ -4,7 +4,7 @@
 #include <HTTPClient.h> // For making HTTP posts
 #include <Adafruit_MPU6050.h> // For accelerometer and gyroscope
 #include <TinyGPS++.h>  // For GPS
-#include <MAX30105.h>  // For Oxygen/HeartRate sensors
+#include <MAX3010x.h>  // For Oxygen/HeartRate sensors
 #include <TFT_eSPI.h> // For the TFT display
 #include <BMI270.h>   // Include library for BMI270
 #include <WiFi.h> // Include WiFi library
@@ -20,7 +20,7 @@ const char* mqttPassword = "mqtt_password"; // Your MQTT password (if required)
 
 // Sensor initialization
 TinyGPSPlus gps;
-MAX30105 oxiSensor;
+MAX3010x oxiSensor;
 BMI270 bmi;
 
 // Define button pin
