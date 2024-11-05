@@ -104,6 +104,14 @@ void readSensors() {
   float az = bmi.getAccZ();
   Serial.printf("Accelerometer: ax=%.2f, ay=%.2f, az=%.2f\n", ax, ay, az);
 
+
+//Read GPS data
+  while (ss.available() > 0)
+   gps.encode(ss.read());
+  Serial.print("LAT=");  Serial.println(gps.location.lat(), 6);
+  Serial.print("LONG="); Serial.println(gps.location.lng(), 6);
+  Serial.print("ALT=");  Serial.println(gps.altitude.meters());
+  
   // Read oxygen and heart rate
   float heartRate = oxiSensor.getHeartRate();
   float oxygenLevel = oxiSensor.getSpO2();
