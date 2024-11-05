@@ -1,17 +1,22 @@
-//Libraries
+// Libraries
 #include <Wire.h>
 #include <SPI.h>
-#include <HTTPClient.h> //For making HTTP posts
-#include <Adafruit_MPU6050.h> //For accelerometer and gyroscope
-#include <TinyGPS++.h>  //For gps
-#include <MAX30105.h>  //For Oxygen/HeartRate sensors
+#include <HTTPClient.h> // For making HTTP posts
+#include <Adafruit_MPU6050.h> // For accelerometer and gyroscope
+#include <TinyGPS++.h>  // For GPS
+#include <MAX30105.h>  // For Oxygen/HeartRate sensors
 #include <TFT_eSPI.h> // For the TFT display
 #include <BMI270.h>   // Include library for BMI270
+#include <WiFi.h> // Include WiFi library
+#include <PubSubClient.h> // Include PubSubClient for MQTT
 
 // WiFi configuration
 const char* ssid = "username";
 const char* password = "password";
-const char* serverUrl = "http://server.com";
+const char* mqttServer = "mqtt.server.com"; // Your MQTT broker URL
+const int mqttPort = 1883; // Your MQTT broker port
+const char* mqttUser = "mqtt_user"; // Your MQTT username (if required)
+const char* mqttPassword = "mqtt_password"; // Your MQTT password (if required)
 
 // Sensor initialization
 TinyGPSPlus gps;
@@ -25,6 +30,13 @@ bool lastButtonState = HIGH; // Previous button state
 // TFT display configuration
 TFT_eSPI tft = TFT_eSPI(); // Create display object
 
+// GPS Serial configuration
+#define GPS_SERIAL Serial2 // Change this to the appropriate Serial port for your GPS module
+
+// MQTT client
+WiFiClient wifiClient;
+PubSubClient mqttClient(wifiClient);
+
 void setup() {
   Serial.begin(115200);
   WiFi.begin(ssid, password);
@@ -35,6 +47,9 @@ void setup() {
     Serial.println("Connecting to WiFi...");
   }
   Serial.println("Connected to WiFi!");
+
+  // Initialize MQTT
+  mqttClient.setServer(mqttServer, mqttPort);
 
   // Initialize sensors
   if (!bmi.begin()) {
@@ -53,6 +68,9 @@ void setup() {
 
   // Set button pin
   pinMode(buttonPin, INPUT_PULLUP); // Use internal pull-up resistor
+
+  // Start GPS Serial
+  GPS_SERIAL.begin(9600); // Change baud rate if needed
 }
 
 void loop() {
@@ -69,7 +87,13 @@ void loop() {
   // Read sensor data
   readSensors();
 
-  delay(1000); // Small delay (1sec)
+  // Reconnect to MQTT broker if disconnected
+  if (!mqttClient.connected()) {
+    reconnectMQTT();
+  }
+  mqttClient.loop(); // Keep the MQTT client connected
+
+  delay(1000); // Small delay (1 sec)
 }
 
 void sendNotification() {
@@ -79,7 +103,7 @@ void sendNotification() {
     http.addHeader("Content-Type", "application/json");
 
     // Create JSON payload for the notification
-    String payload = "{\"message\":\"Your child is asking dor help!\"}";
+    String payload = "{\"message\":\"Your child is asking for help!\"}";
 
     // Send POST request
     int httpResponseCode = http.POST(payload);
@@ -104,24 +128,93 @@ void readSensors() {
   float az = bmi.getAccZ();
   Serial.printf("Accelerometer: ax=%.2f, ay=%.2f, az=%.2f\n", ax, ay, az);
 
-
-//Read GPS data
-  while (ss.available() > 0)
-   gps.encode(ss.read());
-  Serial.print("LAT=");  Serial.println(gps.location.lat(), 6);
-  Serial.print("LONG="); Serial.println(gps.location.lng(), 6);
-  Serial.print("ALT=");  Serial.println(gps.altitude.meters());
-  
   // Read oxygen and heart rate
   float heartRate = oxiSensor.getHeartRate();
   float oxygenLevel = oxiSensor.getSpO2();
   Serial.printf("Heart Rate: %.2f, SpO2: %.2f\n", heartRate, oxygenLevel);
 
-  // Display this data on the TFT display
-  tft.setTextColor(TFT_WHITE);
-  tft.setTextSize(2);
-  tft.setCursor(0, 0);
-  tft.fillScreen(TFT_BLACK);
-  tft.printf("Heart Rate: %.2f\n", heartRate);
-  tft.printf("SpO2: %.2f\n", oxygenLevel);
+  // Read GPS data
+  while (GPS_SERIAL.available()) {
+    gps.encode(GPS_SERIAL.read());
+  }
+
+  // Only display GPS data if a valid location is available
+  if (gps.location.isUpdated()) {
+    double latitude = gps.location.lat();
+    double longitude = gps.location.lng();
+    Serial.printf("Latitude: %.6f, Longitude: %.6f\n", latitude, longitude);
+    
+    // Display this data on the TFT display
+    tft.setTextColor(TFT_WHITE);
+    tft.setTextSize(2);
+    tft.setCursor(0, 0);
+    tft.fillScreen(TFT_BLACK);
+    tft.printf("Heart Rate: %.2f\n", heartRate);
+    tft.printf("SpO2: %.2f\n", oxygenLevel);
+    tft.printf("Lat: %.6f\n", latitude);
+    tft.printf("Lon: %.6f\n", longitude);
+
+    // Send health data via MQTT
+    sendHealthData(heartRate, oxygenLevel);
+    
+    // Send location data via MQTT
+    sendLocationData(latitude, longitude);
+  } else {
+    Serial.println("Waiting for GPS data...");
+  }
 }
+
+void sendHealthData(float heartRate, float oxygenLevel) {
+  // Create JSON payload for health data
+  String payload = "{\"heartRate\": " + String(heartRate) + ", \"oxygenLevel\": " + String(oxygenLevel) + "}";
+
+  // Publish health data to the MQTT broker
+  if (mqttClient.publish("health/data", payload.c_str())) {
+    Serial.println("Health data sent: " + payload);
+  } else {
+    Serial.println("Failed to send health data");
+  }
+}
+
+void sendLocationData(double latitude, double longitude) {
+  // Create JSON payload for location data
+  String payload = "{\"latitude\": " + String(latitude) + ", \"longitude\": " + String(longitude) + "}";
+
+  // Publish location data to the MQTT broker
+  if (mqttClient.publish("location/data", payload.c_str())) {
+    Serial.println("Location data sent: " + payload);
+  } else {
+    Serial.println("Failed to send location data");
+  }
+}
+
+void sendStepCountData(int steps) {
+  // Create JSON payload for step count data
+  String payload = "{\"steps\": " + String(steps) + "}";
+
+  // Publish step count data to the MQTT broker
+  if (mqttClient.publish("steps/data", payload.c_str())) {
+    Serial.println("Step count data sent: " + payload);
+  } else {
+    Serial.println("Failed to send step count data");
+  }
+}
+
+void reconnectMQTT() {
+  // Loop until we're reconnected
+  while (!mqttClient.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (mqttClient.connect("ClientID", mqttUser, mqttPassword)) {
+      Serial.println("connected");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(mqttClient.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+
+
