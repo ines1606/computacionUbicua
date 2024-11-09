@@ -24,7 +24,7 @@ MAX3010x oxiSensor;
 BMI270 bmi;
 
 // Define button pin
-const int buttonPin = 25; // Pin for the button
+const int buttonPin = 27; // Pin for the button
 bool lastButtonState = HIGH; // Previous button state
 
 // TFT display configuration
