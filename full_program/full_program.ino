@@ -3,20 +3,20 @@
 #include <Adafruit_MPU6050.h> // For accelerometer and gyroscope
 #include <MAX30105.h>  // For Oxygen/HeartRate sensors
 #include <TinyGPS++.h>  // For GPS
-
+#include <LiquidCrystal_I2C.h>
 #include "spo2_algorithm.h"
 
 // WiFi configuration
-const char* ssid = "username";
-const char* password = "password";
+const char* ssid = "MiFibra-03BA"; //name of the wifi
+const char* password = "3ArhTR6C"; // password of the wifi
 
 
 
 //MQTT configuration
-const char* mqttServer = "mqtt.example.com";  // MQTT server address
+const char* mqttServer = "192.168.1.68";  // MQTT server address
 const int mqttPort = 1883;                    // MQTT server port
-const char* mqttUser = "mqttUser";            // MQTT username
-const char* mqttPassword = "Pass";    // MQTT password 
+const char* mqttUser = "ubicua";            // MQTT username
+const char* mqttPassword = "ubicua";    // MQTT password 
 
 
 // Sensor initialization
@@ -26,8 +26,7 @@ Adafruit_MPU6050 mpu;
 TwoWire accWire = TwoWire(0);;
 
 // Define button pin
-const int buttonPin = 27; // Pin for the button
-bool lastButtonState = HIGH; // Previous button state
+const int buttonPin = 14; // Pin for the button
 
 // Display configuration
 
@@ -88,13 +87,13 @@ void setup() {
     Serial.println("Error al encontrar el sensor MPU6050");
     while (1);
   }
-
+  /*
   if (!oxiSensor.begin(Wire, I2C_SPEED_FAST)) { 
     Serial.println("Sensor MAX30102 was not found. Connect the sensor and reboot.");
     while (1);
   }
   Serial.println("Sensor MAX30102 initialised.");
-
+ */
   Serial2.begin(GPSBaud, SERIAL_8N1, RXPin, TXPin); // Serial2 for the GPS
   Serial.println("Initializing the gps with the esp32...");
   
@@ -105,7 +104,7 @@ void setup() {
   byte sampleRate = 400; //Options: 50, 100, 200, 400, 800, 1000, 1600, 3200
   int pulseWidth = 411; //Options: 69, 118, 215, 411
   int adcRange = 4096; //Options: 2048, 4096, 8192, 16384
-  oxiSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); // Settings to optimise SpO2 and pulse
+  //oxiSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); // Settings to optimise SpO2 and pulse
 
   // Initialize Display
  
@@ -124,8 +123,9 @@ void loop() {
   // Read button state to know whether the kid is sending a notification or not
   readButton();
   // Read sensor data
-  readSensors();
-
+  //readSensors();
+  
+  //sendDataMQTT();
   delay(1000); // Small delay (1sec)
 }
 
@@ -144,7 +144,7 @@ void readSensors() {
   // Read accelerometer/gyroscope data
   readAcc();
   //get data from oximeter
-  readO2_pulse();
+  //readO2_pulse();
   //get info from gps
   readGPS();
   // Display this data on the display
@@ -258,19 +258,19 @@ void sendDataMQTT(){
   gpsData += "\"longitude\": " + String(longitude, 2) + ",";
   gpsData += "\"latitude\": " + String(latitude, 2) + "}";
  
-  String pulseData = "{\"heartRate\": " + String(heartRate, 2) + "}";
+  //String pulseData = "{\"heartRate\": " + String(heartRate, 2) + "}";
 
-  String o2Data = "{\"oxygenLevel\": " + String(spo2, 2) + "}";
+  //String o2Data = "{\"oxygenLevel\": " + String(spo2, 2) + "}";
   
   // Send the data via MQTT
   if (client.connected()) {
-    String o2Topic = "data/" + uniqueUserID + "/o2" ;
-    String pulseTopic = "data/" + uniqueUserID + "/pulse";
+    //String o2Topic = "data/" + uniqueUserID + "/o2" ;
+    //String pulseTopic = "data/" + uniqueUserID + "/pulse";
     String gpsTopic = "data/" + uniqueUserID + "/gps";
     String accTopic = "data/" + uniqueUserID + "/acc";
 
-    client.publish(o2Topic.c_str(), o2Data.c_str());
-    client.publish(pulseTopic.c_str(), pulseData.c_str());
+    //client.publish(o2Topic.c_str(), o2Data.c_str());
+    //client.publish(pulseTopic.c_str(), pulseData.c_str());
     client.publish(gpsTopic.c_str(), gpsData.c_str());
     client.publish(accTopic.c_str(), accData.c_str());
     Serial.println("Sensor data sent via MQTT");
@@ -281,13 +281,19 @@ void sendDataMQTT(){
 }
 
 void readButton(){
-  bool currentButtonState = digitalRead(buttonPin);
-
+  buttonState = digitalRead(buttonPin);
+  Serial.print("currentButtonState: ");
+  Serial.println(buttonState);
   // Check if button has been pressed
-  if (lastButtonState == HIGH && currentButtonState == LOW) {
+  if (buttonState == LOW) {
     sendNotification();  // Send notification when button is pressed
     delay(2000);  // Wait 2 sec to avoid bouncing
   }
-  lastButtonState = currentButtonState;
+  else {
+    Serial.println("Boton no presionado");
+  }
+
 }
+
+
 
