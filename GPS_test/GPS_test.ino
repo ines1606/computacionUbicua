@@ -19,15 +19,6 @@ void loop() {
   
   while (Serial2.available() > 0) {
     gps.encode(Serial2.read()); // Decode data from GPS
-    // char c = Serial2.read();
-    // Serial.write(c);
-    // gps.encode(c);
-
-    // Serial.print("Chars received: ");
-    // Serial.print(gps.charsProcessed());
-    // Serial.print(" | Valid messages: ");
-    // Serial.println(gps.sentencesWithFix());
-    // Verify if there is data available
     if (gps.location.isUpdated()) {
       Serial.print("Latitud: ");
       Serial.println(gps.location.lat(), 6); // 6 decimals for more accuracy
