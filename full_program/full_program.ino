@@ -11,6 +11,9 @@
 const char* ssid = ""; //name of the wifi
 const char* password = ""; // password of the wifi
 
+//client for quering the hour configuration
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000); // Sin zona horaria (GMT), actualización cada 60 segundos
 
 
 //MQTT configuration
@@ -80,16 +83,20 @@ void setup() {
 
   Serial.begin(115200);
   // Connect to WiFi
-  // WiFi.begin(ssid, password);
-  // while (WiFi.status() != WL_CONNECTED) {
-  //   delay(1000);
-  //   Serial.println("Connecting to WiFi...");
-  // }
-  // Serial.println("Connected to WiFi!");
+   WiFi.begin(ssid, password);
+   while (WiFi.status() != WL_CONNECTED) {
+     delay(1000);
+     Serial.println("Connecting to WiFi...");
+   }
+  Serial.println("Connected to WiFi!");
+
+  // SetUp NTP client
+  timeClient.begin();
+  timeClient.setTimeOffset(3600);
 
   // Setup MQTT client
-  // client.setServer(mqttServer, mqttPort);  // Set MQTT server and port
-  // client.setCallback(mqttCallback);  // Set callback for receiving messages
+  client.setServer(mqttServer, mqttPort);  // Set MQTT server and port
+  client.setCallback(mqttCallback);  // Set callback for receiving messages
 
   // Initialize sensors
   if (!oxiSensor.begin(Wire, I2C_SPEED_FAST)) { 
@@ -126,16 +133,18 @@ void setup() {
 
 void loop() {
   // Maintain MQTT connection
-  // if (!client.connected()) {
-  //   reconnect();
-  // }
-  // client.loop();  // Process incoming messages
+   if (!client.connected()) {
+     reconnect();
+   }
+   client.loop();  // Process incoming messages
 
   // Read button state to know whether the kid is sending a notification or not
   readButton();
   // Read sensor data
-  readSensors();
   
+  readSensors();
+  // Display actual hour on the display
+ obtainHourDateActual();
   //sendDataMQTT();
   delay(1000); // Small delay (1sec)
 }
@@ -158,8 +167,6 @@ void readSensors() {
   readO2_pulse();
   //get info from gps
   readGPS();
-  // Display this data on the display
- 
 }
 
 // Function to get MAC address as a unique user ID
@@ -328,19 +335,19 @@ void sendDataMQTT(){
   gpsData += "\"longitude\": " + String(longitude, 2) + ",";
   gpsData += "\"latitude\": " + String(latitude, 2) + "}";
  
-  //String pulseData = "{\"heartRate\": " + String(heartRate, 2) + "}";
+  String pulseData = "{\"heartRate\": " + String(heartRate, 2) + "}";
 
-  //String o2Data = "{\"oxygenLevel\": " + String(spo2, 2) + "}";
+  String o2Data = "{\"oxygenLevel\": " + String(spo2, 2) + "}";
   
   // Send the data via MQTT
   if (client.connected()) {
-    //String o2Topic = "data/" + uniqueUserID + "/o2" ;
-    //String pulseTopic = "data/" + uniqueUserID + "/pulse";
+    String o2Topic = "data/" + uniqueUserID + "/o2" ;
+    String pulseTopic = "data/" + uniqueUserID + "/pulse";
     String gpsTopic = "data/" + uniqueUserID + "/gps";
     String accTopic = "data/" + uniqueUserID + "/acc";
 
-    //client.publish(o2Topic.c_str(), o2Data.c_str());
-    //client.publish(pulseTopic.c_str(), pulseData.c_str());
+    client.publish(o2Topic.c_str(), o2Data.c_str());
+    client.publish(pulseTopic.c_str(), pulseData.c_str());
     client.publish(gpsTopic.c_str(), gpsData.c_str());
     client.publish(accTopic.c_str(), accData.c_str());
     Serial.println("Sensor data sent via MQTT");
@@ -365,5 +372,24 @@ void readButton(){
 
 }
 
+void obtainHourDateActual(){
+  timeClient.update();
 
+  // Cambiar para que salga por la pantalla
+  Serial.print("Hour: ");
+  Serial.print(timeClient.getHours());
+  Serial.print(":");
+  Serial.print(timeClient.getMinutes());
+  Serial.print(":");
+  Serial.println(timeClient.getSeconds());
+  
+  // Cambiar para que salga por la pantalla
+  Serial.print("Date: ");
+  Serial.print(timeClient.getDay());
+  Serial.print("/");
+  Serial.print(timeClient.getMonth());
+  Serial.print("/");
+  Serial.println(timeClient.getYear());
 
+  delay(1000);
+}
