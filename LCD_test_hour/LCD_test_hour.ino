@@ -7,10 +7,12 @@ const char* ssid       = "";
 const char* password   = "";
 
 const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = 0;
+const long  gmtOffset_sec = 3600;
 const int   daylightOffset_sec = 3600;
 
 LiquidCrystal_I2C lcd(0x27, 20, 4);//crear un objeto lcd (DIRECCIÓN pantalla, Tamaño x, Tamño y)
+
+TwoWire *wire = &Wire;
 
 void printLocalTime()
 {
@@ -43,7 +45,7 @@ void setup() {
   WiFi.mode(WIFI_OFF);
 
   // Initialize display
-  Wire.setPins(26, 27);
+  wire->setPins(26, 27);
   lcd.init();
   Serial.begin(115200);
   Serial.println("\nPantalla LCD");
@@ -66,8 +68,6 @@ void setup() {
 }
 
 void loop() {
-  // lcd.clear();
-
   struct tm timeinfo;
   if(!getLocalTime(&timeinfo)){
     Serial.println("Failed to obtain time");
