@@ -27,7 +27,9 @@ const char* mqttPassword = "ubicua";    // MQTT password
 TinyGPSPlus gps;
 MAX30105 oxiSensor;
 Adafruit_MPU6050 mpu;
+TwoWire oxiWire = TwoWire(0);
 TwoWire accWire = TwoWire(1);
+TwoWire displayWire = TwoWire(2);
 
 // Define button pin
 const int buttonPin = 14; // Pin for the button
@@ -99,7 +101,8 @@ void setup() {
   client.setCallback(mqttCallback);  // Set callback for receiving messages
 
   // Initialize sensors
-  if (!oxiSensor.begin(Wire, I2C_SPEED_FAST)) { 
+  oxiWire.begin(21, 22);
+  if (!oxiSensor.begin(&oxiWire, I2C_SPEED_FAST)) { 
     Serial.println("Sensor MAX30102 was not found. Connect the sensor and reboot.");
     while (1);
   }
@@ -115,7 +118,7 @@ void setup() {
   Serial2.begin(GPSBaud, SERIAL_8N1, RXPin, TXPin); // Serial2 for the GPS
   Serial.println("Initializing the gps with the esp32...");
   
-  // Configure the sensor
+  // Configure the MAX30102 sensor
   byte ledBrightness = 60; //Options: 0=Off to 255=50mA
   byte sampleAverage = 4; //Options: 1, 2, 4, 8, 16, 32
   byte ledMode = 2; //Options: 1 = Red only, 2 = Red + IR, 3 = Red + IR + Green
@@ -123,6 +126,9 @@ void setup() {
   int pulseWidth = 118; //Options: 69, 118, 215, 411
   int adcRange = 4096; //Options: 2048, 4096, 8192, 16384
   oxiSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); // Settings to optimise SpO2 and pulse
+
+  // Calibrate the MPU6050 sensor
+  calibrateMPU6050();
 
   // Initialize Display
  
@@ -318,10 +324,54 @@ void readO2_pulse(){
 void readAcc(){
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
-  // Get accelerometer data
-  ax = a.acceleration.x;
-  ay = a.acceleration.y;
-  az = a.acceleration.z;
+  // compensate data taken from accelerometer
+  float ax = a.acceleration.x - accOffsetX;
+  float ay = a.acceleration.y - accOffsetY;
+  float az = a.acceleration.z - accOffsetZ;
+
+  // compensate data taken from gyroscope
+  float gx = g.gyro.x - gyroOffsetX;
+  float gy = g.gyro.y - gyroOffsetY;
+  float gz = g.gyro.z - gyroOffsetZ;
+}
+
+void calibrateMPU6050() {
+  const int sampleSize = 1250;
+  
+  float accSumX = 0, accSumY = 0, accSumZ = 0;
+  float gyroSumX = 0, gyroSumY = 0, gyroSumZ = 0;
+
+  Serial.println("Calibraring the sensor MPU6050. Please don't move the sensor...");
+  
+  // Samples
+  for (int i = 0; i < sampleSize; i++) {
+    Serial.print(1);
+    sensors_event_t a, g, temp;
+    mpu.getEvent(&a, &g, &temp);
+
+    accSumX += a.acceleration.x;
+    accSumY += a.acceleration.y;
+    accSumZ += a.acceleration.z - 9.81; 
+
+    gyroSumX += g.gyro.x;
+    gyroSumY += g.gyro.y;
+    gyroSumZ += g.gyro.z;
+
+    delay(10);  
+  }
+
+  // Calcaulate the mid value 
+  accOffsetX = accSumX / sampleSize;
+  accOffsetY = accSumY / sampleSize;
+  accOffsetZ = accSumZ / sampleSize;
+  
+  gyroOffsetX = gyroSumX / sampleSize;
+  gyroOffsetY = gyroSumY / sampleSize;
+  gyroOffsetZ = gyroSumZ / sampleSize;
+
+  // Serial.println("Calibración completada.");
+  // Serial.printf("Compensación Acelerómetro: X=%.2f, Y=%.2f, Z=%.2f\n", accOffsetX, accOffsetY, accOffsetZ);
+  // Serial.printf("Compensación Giroscopio: X=%.2f, Y=%.2f, Z=%.2f\n", gyroOffsetX, gyroOffsetY, gyroOffsetZ);
 }
 
 void sendDataMQTT(){
