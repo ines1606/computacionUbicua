@@ -4,6 +4,7 @@
 LiquidCrystal_I2C lcd(0x27, 20, 4);//crear un objeto lcd (DIRECCIÓN pantalla, Tamaño x, Tamño y)
 
 void setup() {
+  Wire.setPins(26, 27);
   lcd.init();
   Serial.begin(115200);
   Serial.println("\nPantalla LCD");
@@ -26,6 +27,7 @@ void setup() {
 void loop() {
   lcd.backlight();
   delay(5000);
+  lcd.clear();
   lcd.setCursor (0,0);//poner el cursor en las coordenadas (x,y)
   Serial.println("Fila 0");
   lcd.print("Fila 0");//muestra en la pantalla max 20 caracteres
