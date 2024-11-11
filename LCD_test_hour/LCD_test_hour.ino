@@ -73,12 +73,10 @@ void loop() {
     Serial.println("Failed to obtain time");
     return;
   }
-  Serial.println(&timeinfo, "%A, %d %B %Y");
-  Serial.println(&timeinfo,"%H:%M:%S");
 
   // Cambiar para que salga por la pantalla
   lcd.setCursor(0, 0); // column 0, row 0
-  lcd.print(&timeinfo, "%A, ");
+  lcd.print(&timeinfo, "%A");
   lcd.setCursor(0, 1); // column 0, row 1
   lcd.print(&timeinfo, "%d %B %Y");
   
