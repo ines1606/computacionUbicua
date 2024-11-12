@@ -2,8 +2,8 @@
 #include <PubSubClient.h> //library for communication with broker using MQTT
 
 // WiFi
-const char *ssid = "MiFibra-B788"; // Enter Wi-Fi name
-const char *password = "rGmW7ws4";  // Enter Wi-Fi password
+const char *ssid = ""; // Enter Wi-Fi name
+const char *password = "";  // Enter Wi-Fi password
 
 // MQTT Broker - enter details
 const char *mqtt_broker = "192.168.1.23"; //address (IP or domain)
