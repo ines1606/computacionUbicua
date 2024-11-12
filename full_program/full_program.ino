@@ -16,7 +16,7 @@ const char* password = ""; // password of the wifi
 const char* mqttServer = "192.168.1.23";  // MQTT server address
 const int mqttPort = 1883;                    // MQTT server port
 const char* mqttUser = "ubicua";            // MQTT username
-const char* mqttPassword = "ubicua";    // MQTT password 
+const char* mqttPassword = "ubicua";    // MQTT password
 
 // npt server for quering the hour
 const char* ntpServer = "pool.ntp.org";
@@ -47,8 +47,8 @@ PubSubClient client(espClient);  // MQTT client
 
 // GPS CONF
 const int RXPin = 16;          // Pin RX of ESP32 for the GPS
-const int TXPin = 17;          // Pin TX of ESP32 for el GPS 
-const uint32_t GPSBaud = 9600; 
+const int TXPin = 17;          // Pin TX of ESP32 for el GPS
+const uint32_t GPSBaud = 9600;
 
 // Variables for oxygen
 uint32_t irBuffer[100];  // Save IR samples
@@ -69,7 +69,7 @@ int beatAvg;
 
 //variables for accelerometer
 float ax, ay, az;
-float gx, gy, gz; 
+float gx, gy, gz;
 float accOffsetX = 0, accOffsetY = 0, accOffsetZ = 0;
 float gyroOffsetX = 0, gyroOffsetY = 0, gyroOffsetZ = 0;
 
@@ -77,7 +77,7 @@ float gyroOffsetX = 0, gyroOffsetY = 0, gyroOffsetZ = 0;
 float latitude = 0.0;
 float longitude = 0.0;
 
-// 
+//
 String uniqueUserID = "";
 
 // Setup and initialization
@@ -105,7 +105,7 @@ void setup() {
 
   // Initialize sensors
   oxiWire.begin(21, 22);
-  if (!oxiSensor.begin(oxiWire, I2C_SPEED_FAST)) { 
+  if (!oxiSensor.begin(oxiWire, I2C_SPEED_FAST)) {
     Serial.println("Sensor MAX30102 was not found. Connect the sensor and reboot.");
     while (1);
   }
@@ -118,7 +118,7 @@ void setup() {
     while (1);
   }
   Serial.println("Sensor MPU6050 initialised.");
-  
+
   Serial2.begin(GPSBaud, SERIAL_8N1, RXPin, TXPin); // Serial2 for the GPS
   Serial.println("Initializing the gps with the esp32...");
 
@@ -130,7 +130,7 @@ void setup() {
   lcd.print("Power on");
   lcd.setCursor(0, 1);
   lcd.print("Starting...");
-  
+
   // Configure the MAX30102 sensor
   byte ledBrightness = 60; //Options: 0=Off to 255=50mA
   byte sampleAverage = 4; //Options: 1, 2, 4, 8, 16, 32
@@ -162,7 +162,7 @@ void loop() {
 
   // Display actual hour on the display
   obtainHourDateActual();
-  
+
   // Read sensor data
   readSensors();
 
@@ -174,7 +174,7 @@ void loop() {
 void sendNotification() {
   if (client.connected()) {
     String message = "{\"message\":\"Your child is asking for help!\"}";
-    String messageTopic = "data/" + uniqueUserID + "/SOS_messages"; 
+    String messageTopic = "data/" + uniqueUserID + "/SOS_messages";
     client.publish(messageTopic.c_str(), message.c_str());  // Publish message to the MQTT topic
     Serial.println("Notification sent via MQTT: " + message);
   } else {
@@ -209,7 +209,7 @@ void reconnect() {
   // Loop until connected to MQTT
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
-    
+
     // Attempt to connect
     if (client.connect("ESP32Client", mqttUser, mqttPassword)) {
       Serial.println("connected");
@@ -249,11 +249,11 @@ void readO2_pulse(){
     while (oxiSensor.available() == false) { // Wait for data to become available
       oxiSensor.check(); // Reads sensor data
     }
-    
+
     // Stores the data in the corresponding buffers
     redBuffer[i] = oxiSensor.getRed();
     irBuffer[i] = oxiSensor.getIR();
-    
+
     oxiSensor.nextSample(); // Go to the next data
 
     if (checkForBeat(irBuffer[i]) == true) {
@@ -315,7 +315,7 @@ void readO2_pulse(){
       }
     }
   }
-  
+
   //After gathering 25 new samples recalculate HR and SP02
   maxim_heart_rate_and_oxygen_saturation(irBuffer, bufferLength, redBuffer, &spo2, &validSPO2, &heartRate, &validHeartRate);
 
@@ -327,7 +327,7 @@ void readO2_pulse(){
   } else {
     Serial.print("Pulse not valid, ");
   }
-  
+
   if (validSPO2) {
     Serial.print("SpO2: ");
     Serial.print(spo2);
@@ -353,12 +353,12 @@ void readAcc(){
 
 void calibrateMPU6050() {
   const int sampleSize = 1250;
-  
+
   float accSumX = 0, accSumY = 0, accSumZ = 0;
   float gyroSumX = 0, gyroSumY = 0, gyroSumZ = 0;
 
   Serial.println("Calibraring the sensor MPU6050. Please don't move the sensor...");
-  
+
   // Samples
   for (int i = 0; i < sampleSize; i++) {
     sensors_event_t a, g, temp;
@@ -366,20 +366,20 @@ void calibrateMPU6050() {
 
     accSumX += a.acceleration.x;
     accSumY += a.acceleration.y;
-    accSumZ += a.acceleration.z - 9.81; 
+    accSumZ += a.acceleration.z - 9.81;
 
     gyroSumX += g.gyro.x;
     gyroSumY += g.gyro.y;
     gyroSumZ += g.gyro.z;
 
-    delay(1);  
+    delay(1);
   }
 
-  // Calcaulate the mid value 
+  // Calcaulate the mid value
   accOffsetX = accSumX / sampleSize;
   accOffsetY = accSumY / sampleSize;
   accOffsetZ = accSumZ / sampleSize;
-  
+
   gyroOffsetX = gyroSumX / sampleSize;
   gyroOffsetY = gyroSumY / sampleSize;
   gyroOffsetZ = gyroSumZ / sampleSize;
@@ -399,11 +399,11 @@ void sendDataMQTT(){
   String gpsData = "{";
   gpsData += "\"longitude\": " + String(longitude, 2) + ",";
   gpsData += "\"latitude\": " + String(latitude, 2) + "}";
- 
+
   String pulseData = "{\"heartRate\": " + String(beatAvg) + "}";
 
   String o2Data = "{\"oxygenLevel\": " + String(spo2) + "}";
-  
+
   // Send the data via MQTT
   if (client.connected()) {
     String o2Topic = "data/" + uniqueUserID + "/o2" ;
@@ -475,7 +475,7 @@ void obtainHourDateActual(){
   lcd.print(&timeinfo, "%A");
   lcd.setCursor(0, 1); // column 0, row 1
   lcd.print(&timeinfo, "%d %B %Y");
-  
+
   // Display the hour
   lcd.setCursor(0, 2); // column 0, row 2
   lcd.print(&timeinfo, "%H:%M:%S");
