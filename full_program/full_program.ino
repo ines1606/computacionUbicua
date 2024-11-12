@@ -6,25 +6,35 @@
 #include <LiquidCrystal_I2C.h>
 #include "spo2_algorithm.h"
 #include "heartRate.h"
+<<<<<<< HEAD
 #include <WiFiUdp.h>
+=======
+#include "time.h"
+>>>>>>> fe531a06b2246b67222222b5b54de0dfed1ac67e
 
 // WiFi configuration
 const char* ssid = ""; //name of the wifi
 const char* password = ""; // password of the wifi
 
-
-
 //MQTT configuration
-const char* mqttServer = "172.22.88.103";  // MQTT server address
+const char* mqttServer = "192.168.1.23";  // MQTT server address
 const int mqttPort = 1883;                    // MQTT server port
 const char* mqttUser = "ubicua";            // MQTT username
 const char* mqttPassword = "ubicua";    // MQTT password 
+
+// npt server for quering the hour
+const char* ntpServer = "pool.ntp.org";
+const long  gmtOffset_sec = 3600;
+const int   daylightOffset_sec = 3600;
 
 
 // Sensor initialization
 TinyGPSPlus gps;
 MAX30105 oxiSensor;
 Adafruit_MPU6050 mpu;
+
+// Wires initialization
+TwoWire oxiWire = TwoWire(0);
 TwoWire accWire = TwoWire(1);
 
 // Define button pin
@@ -32,12 +42,11 @@ const int buttonPin = 14; // Pin for the button
 int buttonState;
 
 // Display configuration
-
+LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 // MQTT Client initialization
 WiFiClient espClient;   // WiFi client
 PubSubClient client(espClient);  // MQTT client
-
 
 
 // GPS CONF
@@ -66,6 +75,8 @@ int beatAvg;
 float ax;
 float ay; 
 float az;
+float accOffsetX = 0, accOffsetY = 0, accOffsetZ = 0;
+float gyroOffsetX = 0, gyroOffsetY = 0, gyroOffsetZ = 0;
 
 //variables for gps
 float latitude = 0.0;
@@ -73,6 +84,7 @@ float longitude = 0.0;
 
 // 
 String uniqueUserID = "";
+
 // Setup and initialization
 void setup() {
 
@@ -81,24 +93,30 @@ void setup() {
 
   Serial.begin(115200);
   // Connect to WiFi
-  // WiFi.begin(ssid, password);
-  // while (WiFi.status() != WL_CONNECTED) {
-  //   delay(1000);
-  //   Serial.println("Connecting to WiFi...");
-  // }
-  // Serial.println("Connected to WiFi!");
+   WiFi.begin(ssid, password);
+   while (WiFi.status() != WL_CONNECTED) {
+     delay(1000);
+     Serial.println("Connecting to WiFi...");
+   }
+  Serial.println("Connected to WiFi!");
+
+  //init and get the time
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
   // Setup MQTT client
-  // client.setServer(mqttServer, mqttPort);  // Set MQTT server and port
-  // client.setCallback(mqttCallback);  // Set callback for receiving messages
+  client.setServer(mqttServer, mqttPort);  // Set MQTT server and port
+  client.setCallback(mqttCallback);  // Set callback for receiving messages
+
 
   // Initialize sensors
-  if (!oxiSensor.begin(Wire, I2C_SPEED_FAST)) { 
+  oxiWire.begin(21, 22);
+  if (!oxiSensor.begin(oxiWire, I2C_SPEED_FAST)) { 
     Serial.println("Sensor MAX30102 was not found. Connect the sensor and reboot.");
     while (1);
   }
   Serial.println("Sensor MAX30102 initialised.");
 
+  // accWire.setPins(33, 25);
   accWire.begin(33, 25);
   if (!mpu.begin(104, &accWire, 0)) {
     Serial.println("Error al encontrar el sensor MPU6050");
@@ -108,8 +126,17 @@ void setup() {
   
   Serial2.begin(GPSBaud, SERIAL_8N1, RXPin, TXPin); // Serial2 for the GPS
   Serial.println("Initializing the gps with the esp32...");
+
+  // Initialize Display
+  Wire.begin(26, 27);
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Power on");
+  lcd.setCursor(0, 1);
+  lcd.print("Starting...");
   
-  // Configure the sensor
+  // Configure the MAX30102 sensor
   byte ledBrightness = 60; //Options: 0=Off to 255=50mA
   byte sampleAverage = 4; //Options: 1, 2, 4, 8, 16, 32
   byte ledMode = 2; //Options: 1 = Red only, 2 = Red + IR, 3 = Red + IR + Green
@@ -118,27 +145,39 @@ void setup() {
   int adcRange = 4096; //Options: 2048, 4096, 8192, 16384
   oxiSensor.setup(ledBrightness, sampleAverage, ledMode, sampleRate, pulseWidth, adcRange); // Settings to optimise SpO2 and pulse
 
-  // Initialize Display
- 
+  // Calibrate the MPU6050 sensor
+  calibrateMPU6050();
 
   // Set button pin
   pinMode(buttonPin, INPUT_PULLUP); // Use internal pull-up resistor
+
+  // Clear the display
+  lcd.clear();
 }
 
 void loop() {
+  lcd.setCursor(0, 0);
+  lcd.print("Prueba LCD");
+  delay(1000);
+
   // Maintain MQTT connection
-  // if (!client.connected()) {
-  //   reconnect();
-  // }
-  // client.loop();  // Process incoming messages
+   if (!client.connected()) {
+     reconnect();
+   }
+   client.loop();  // Process incoming messages
 
   // Read button state to know whether the kid is sending a notification or not
   readButton();
+
+  // Display actual hour on the display
+  obtainHourDateActual();
+  
   // Read sensor data
   readSensors();
-  
-  //sendDataMQTT();
-  delay(1000); // Small delay (1sec)
+
+  sendDataMQTT();
+
+  // delay(1000); // Small delay (1sec)
 }
 
 void sendNotification() {
@@ -159,8 +198,6 @@ void readSensors() {
   readO2_pulse();
   //get info from gps
   readGPS();
-  // Display this data on the display
- 
 }
 
 // Function to get MAC address as a unique user ID
@@ -312,14 +349,57 @@ void readO2_pulse(){
 void readAcc(){
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
-  // Get accelerometer data
-  ax = a.acceleration.x;
-  ay = a.acceleration.y;
-  az = a.acceleration.z;
+  // compensate data taken from accelerometer
+  float ax = a.acceleration.x - accOffsetX;
+  float ay = a.acceleration.y - accOffsetY;
+  float az = a.acceleration.z - accOffsetZ;
+
+  // compensate data taken from gyroscope
+  float gx = g.gyro.x - gyroOffsetX;
+  float gy = g.gyro.y - gyroOffsetY;
+  float gz = g.gyro.z - gyroOffsetZ;
+}
+
+void calibrateMPU6050() {
+  const int sampleSize = 1250;
+  
+  float accSumX = 0, accSumY = 0, accSumZ = 0;
+  float gyroSumX = 0, gyroSumY = 0, gyroSumZ = 0;
+
+  Serial.println("Calibraring the sensor MPU6050. Please don't move the sensor...");
+  
+  // Samples
+  for (int i = 0; i < sampleSize; i++) {
+    sensors_event_t a, g, temp;
+    mpu.getEvent(&a, &g, &temp);
+
+    accSumX += a.acceleration.x;
+    accSumY += a.acceleration.y;
+    accSumZ += a.acceleration.z - 9.81; 
+
+    gyroSumX += g.gyro.x;
+    gyroSumY += g.gyro.y;
+    gyroSumZ += g.gyro.z;
+
+    delay(1);  
+  }
+
+  // Calcaulate the mid value 
+  accOffsetX = accSumX / sampleSize;
+  accOffsetY = accSumY / sampleSize;
+  accOffsetZ = accSumZ / sampleSize;
+  
+  gyroOffsetX = gyroSumX / sampleSize;
+  gyroOffsetY = gyroSumY / sampleSize;
+  gyroOffsetZ = gyroSumZ / sampleSize;
+
+  Serial.println("Calibration completed.");
+  Serial.printf("Accelerometer compensation: X=%.2f, Y=%.2f, Z=%.2f\n", accOffsetX, accOffsetY, accOffsetZ);
+  Serial.printf("Gyroscope compensation: X=%.2f, Y=%.2f, Z=%.2f\n", gyroOffsetX, gyroOffsetY, gyroOffsetZ);
 }
 
 void sendDataMQTT(){
-// Create JSON message with sensor's data
+  // Create JSON message with sensor's data
   String accData = "{";
   accData += "\"ax\": " + String(ax, 2) + ",";
   accData += "\"ay\": " + String(ay, 2) + ",";
@@ -329,19 +409,19 @@ void sendDataMQTT(){
   gpsData += "\"longitude\": " + String(longitude, 2) + ",";
   gpsData += "\"latitude\": " + String(latitude, 2) + "}";
  
-  //String pulseData = "{\"heartRate\": " + String(heartRate, 2) + "}";
+  String pulseData = "{\"heartRate\": " + String(heartRate, 2) + "}";
 
-  //String o2Data = "{\"oxygenLevel\": " + String(spo2, 2) + "}";
+  String o2Data = "{\"oxygenLevel\": " + String(spo2, 2) + "}";
   
   // Send the data via MQTT
   if (client.connected()) {
-    //String o2Topic = "data/" + uniqueUserID + "/o2" ;
-    //String pulseTopic = "data/" + uniqueUserID + "/pulse";
+    String o2Topic = "data/" + uniqueUserID + "/o2" ;
+    String pulseTopic = "data/" + uniqueUserID + "/pulse";
     String gpsTopic = "data/" + uniqueUserID + "/gps";
     String accTopic = "data/" + uniqueUserID + "/acc";
 
-    //client.publish(o2Topic.c_str(), o2Data.c_str());
-    //client.publish(pulseTopic.c_str(), pulseData.c_str());
+    client.publish(o2Topic.c_str(), o2Data.c_str());
+    client.publish(pulseTopic.c_str(), pulseData.c_str());
     client.publish(gpsTopic.c_str(), gpsData.c_str());
     client.publish(accTopic.c_str(), accData.c_str());
     Serial.println("Sensor data sent via MQTT");
@@ -366,5 +446,22 @@ void readButton(){
 
 }
 
+void obtainHourDateActual(){
+  struct tm timeinfo;
+  if(!getLocalTime(&timeinfo)){
+    Serial.println("Failed to obtain time");
+    return;
+  }
 
+  // Display the date
+  lcd.setCursor(0, 0); // column 0, row 0
+  lcd.print(&timeinfo, "%A");
+  lcd.setCursor(0, 1); // column 0, row 1
+  lcd.print(&timeinfo, "%d %B %Y");
+  
+  // Display the hour
+  lcd.setCursor(0, 2); // column 0, row 2
+  lcd.print(&timeinfo, "%H:%M:%S");
 
+  Serial.println(&timeinfo, "%A, %d %B %Y %H:%M:%S");
+}

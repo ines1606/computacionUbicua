@@ -22,11 +22,14 @@ long lastBeat = 0; //Time at which the last beat occurred
 float beatsPerMinute;
 int beatAvg;
 
+TwoWire oxiWire = TwoWire(0);
+
 void setup()
 {
   Serial.begin(115200); // initialize serial communication at 115200 bits per second:
   // Initialize sensor
-  if (!particleSensor.begin(Wire, I2C_SPEED_FAST)) //Use default I2C port, 400kHz speed
+  oxiWire.setPins(21, 22);
+  if (!particleSensor.begin(oxiWire, I2C_SPEED_FAST)) //Use default I2C port, 400kHz speed
   {
     Serial.println(F("MAX30105 was not found. Please check wiring/power."));
     while (1);
