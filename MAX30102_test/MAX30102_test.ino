@@ -28,7 +28,7 @@ void setup()
 {
   Serial.begin(115200); // initialize serial communication at 115200 bits per second:
   // Initialize sensor
-  oxiWire.setPins(21, 22);
+  oxiWire.begin(21, 22);
   if (!particleSensor.begin(oxiWire, I2C_SPEED_FAST)) //Use default I2C port, 400kHz speed
   {
     Serial.println(F("MAX30105 was not found. Please check wiring/power."));

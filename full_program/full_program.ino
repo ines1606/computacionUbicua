@@ -6,11 +6,7 @@
 #include <LiquidCrystal_I2C.h>
 #include "spo2_algorithm.h"
 #include "heartRate.h"
-<<<<<<< HEAD
-#include <WiFiUdp.h>
-=======
 #include "time.h"
->>>>>>> fe531a06b2246b67222222b5b54de0dfed1ac67e
 
 // WiFi configuration
 const char* ssid = ""; //name of the wifi
@@ -156,10 +152,6 @@ void setup() {
 }
 
 void loop() {
-  lcd.setCursor(0, 0);
-  lcd.print("Prueba LCD");
-  delay(1000);
-
   // Maintain MQTT connection
    if (!client.connected()) {
      reconnect();
@@ -177,7 +169,7 @@ void loop() {
 
   sendDataMQTT();
 
-  // delay(1000); // Small delay (1sec)
+  delay(1000); // Small delay (1sec)
 }
 
 void sendNotification() {
