@@ -2,14 +2,14 @@
 #include <PubSubClient.h> //library for communication with broker using MQTT
 
 // WiFi
-const char *ssid = "xxxxx"; // Enter Wi-Fi name
-const char *password = "xxxxx";  // Enter Wi-Fi password
+const char *ssid = "MiFibra-B788"; // Enter Wi-Fi name
+const char *password = "rGmW7ws4";  // Enter Wi-Fi password
 
 // MQTT Broker - enter details
-const char *mqtt_broker = "xxxxx"; //address (IP or domain)
+const char *mqtt_broker = "192.168.1.23"; //address (IP or domain)
 const char *topic = "xxxxx"; //topic to pubish / subscribe to
-const char *mqtt_username = "xxxxx"; 
-const char *mqtt_password = "xxxxx";
+const char *mqtt_username = "ubicua"; 
+const char *mqtt_password = "ubicua";
 const int mqtt_port = 1883; //broker port (1883 for not secure on default)
 
 WiFiClient espClient; //Wi-Fi client used for communication
@@ -37,7 +37,7 @@ void setup() {
             Serial.println("Public EMQX MQTT broker connected");
         } else {
             Serial.print("failed with state ");
-            Serial.print(client.state()); //print state if it fails
+            Serial.println(client.state()); //print state if it fails
             delay(2000); //try again after 2 seconds
         }
     }
