@@ -9,8 +9,8 @@
 #include "time.h"
 
 // WiFi configuration
-const char* ssid = "MiFibra-B788"; //name of the wifi
-const char* password = "rGmW7ws4"; // password of the wifi
+const char* ssid = ""; //name of the wifi
+const char* password = ""; // password of the wifi
 
 //MQTT configuration
 const char* mqttServer = "192.168.1.23";  // MQTT server address
@@ -155,7 +155,7 @@ void loop() {
   lcd.setCursor(0, 0);
   lcd.print("Prueba LCD");
   delay(1000);
-  
+
   // Maintain MQTT connection
    if (!client.connected()) {
      reconnect();

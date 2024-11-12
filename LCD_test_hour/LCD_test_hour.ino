@@ -3,8 +3,8 @@
 #include <WiFi.h>
 #include "time.h"
 
-const char* ssid       = "MiFibra-B788";
-const char* password   = "rGmW7ws4";
+const char* ssid       = "";
+const char* password   = "";
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;
