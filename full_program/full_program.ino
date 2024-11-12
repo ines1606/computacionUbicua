@@ -6,6 +6,7 @@
 #include <LiquidCrystal_I2C.h>
 #include "spo2_algorithm.h"
 #include "heartRate.h"
+#include <WiFiUdp.h>
 
 // WiFi configuration
 const char* ssid = ""; //name of the wifi
