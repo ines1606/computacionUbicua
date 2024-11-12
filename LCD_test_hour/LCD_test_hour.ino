@@ -3,16 +3,14 @@
 #include <WiFi.h>
 #include "time.h"
 
-const char* ssid       = "";
-const char* password   = "";
+const char* ssid       = "MiFibra-B788";
+const char* password   = "rGmW7ws4";
 
 const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;
 const int   daylightOffset_sec = 3600;
 
 LiquidCrystal_I2C lcd(0x27, 20, 4);//crear un objeto lcd (DIRECCIÓN pantalla, Tamaño x, Tamño y)
-
-TwoWire *wire = &Wire;
 
 void printLocalTime()
 {
@@ -45,7 +43,7 @@ void setup() {
   WiFi.mode(WIFI_OFF);
 
   // Initialize display
-  wire->setPins(26, 27);
+  Wire.begin(26, 27);
   lcd.init();
   Serial.begin(115200);
   Serial.println("\nPantalla LCD");

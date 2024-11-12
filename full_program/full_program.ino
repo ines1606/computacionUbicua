@@ -9,8 +9,8 @@
 #include "time.h"
 
 // WiFi configuration
-const char* ssid = ""; //name of the wifi
-const char* password = ""; // password of the wifi
+const char* ssid = "MiFibra-B788"; //name of the wifi
+const char* password = "rGmW7ws4"; // password of the wifi
 
 //MQTT configuration
 const char* mqttServer = "192.168.1.23";  // MQTT server address
@@ -28,9 +28,10 @@ const int   daylightOffset_sec = 3600;
 TinyGPSPlus gps;
 MAX30105 oxiSensor;
 Adafruit_MPU6050 mpu;
+
+// Wires initialization
 TwoWire oxiWire = TwoWire(0);
 TwoWire accWire = TwoWire(1);
-TwoWire *displayWire = &Wire;
 
 // Define button pin
 const int buttonPin = 14; // Pin for the button
@@ -102,15 +103,17 @@ void setup() {
   client.setServer(mqttServer, mqttPort);  // Set MQTT server and port
   client.setCallback(mqttCallback);  // Set callback for receiving messages
 
+
   // Initialize sensors
-  oxiWire.setPins(21, 22);
+  oxiWire.begin(21, 22);
   if (!oxiSensor.begin(oxiWire, I2C_SPEED_FAST)) { 
     Serial.println("Sensor MAX30102 was not found. Connect the sensor and reboot.");
     while (1);
   }
   Serial.println("Sensor MAX30102 initialised.");
 
-  accWire.setPins(33, 25);
+  // accWire.setPins(33, 25);
+  accWire.begin(33, 25);
   if (!mpu.begin(104, &accWire, 0)) {
     Serial.println("Error al encontrar el sensor MPU6050");
     while (1);
@@ -119,6 +122,15 @@ void setup() {
   
   Serial2.begin(GPSBaud, SERIAL_8N1, RXPin, TXPin); // Serial2 for the GPS
   Serial.println("Initializing the gps with the esp32...");
+
+  // Initialize Display
+  Wire.begin(26, 27);
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Power on");
+  lcd.setCursor(0, 1);
+  lcd.print("Starting...");
   
   // Configure the MAX30102 sensor
   byte ledBrightness = 60; //Options: 0=Off to 255=50mA
@@ -132,35 +144,36 @@ void setup() {
   // Calibrate the MPU6050 sensor
   calibrateMPU6050();
 
-  // Initialize Display
-  displayWire->setPins(26, 27);
-  lcd.init();
-  lcd.backlight();
-  lcd.clear();
-
   // Set button pin
   pinMode(buttonPin, INPUT_PULLUP); // Use internal pull-up resistor
+
+  // Clear the display
+  lcd.clear();
 }
 
 void loop() {
+  lcd.setCursor(0, 0);
+  lcd.print("Prueba LCD");
+  delay(1000);
+  
   // Maintain MQTT connection
-  //  if (!client.connected()) {
-  //    reconnect();
-  //  }
-  //  client.loop();  // Process incoming messages
+   if (!client.connected()) {
+     reconnect();
+   }
+   client.loop();  // Process incoming messages
 
   // Read button state to know whether the kid is sending a notification or not
   readButton();
+
+  // Display actual hour on the display
+  obtainHourDateActual();
   
   // Read sensor data
   readSensors();
 
-  // Display actual hour on the display
-  obtainHourDateActual();
+  sendDataMQTT();
 
-  // sendDataMQTT();
-
-  delay(1000); // Small delay (1sec)
+  // delay(1000); // Small delay (1sec)
 }
 
 void sendNotification() {
@@ -353,7 +366,6 @@ void calibrateMPU6050() {
   
   // Samples
   for (int i = 0; i < sampleSize; i++) {
-    Serial.print(1);
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
 
@@ -365,7 +377,7 @@ void calibrateMPU6050() {
     gyroSumY += g.gyro.y;
     gyroSumZ += g.gyro.z;
 
-    delay(10);  
+    delay(1);  
   }
 
   // Calcaulate the mid value 
@@ -376,6 +388,10 @@ void calibrateMPU6050() {
   gyroOffsetX = gyroSumX / sampleSize;
   gyroOffsetY = gyroSumY / sampleSize;
   gyroOffsetZ = gyroSumZ / sampleSize;
+
+  Serial.println("Calibration completed.");
+  Serial.printf("Accelerometer compensation: X=%.2f, Y=%.2f, Z=%.2f\n", accOffsetX, accOffsetY, accOffsetZ);
+  Serial.printf("Gyroscope compensation: X=%.2f, Y=%.2f, Z=%.2f\n", gyroOffsetX, gyroOffsetY, gyroOffsetZ);
 }
 
 void sendDataMQTT(){
