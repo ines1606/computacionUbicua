@@ -411,14 +411,14 @@ void sendDataMQTT(){
     String gpsTopic = "data/" + uniqueUserID + "/gps";
     String accTopic = "data/" + uniqueUserID + "/acc";
 
-    if (validSPO2) {
+    if (validSPO2 && spo2 > 0) {
       client.publish(o2Topic.c_str(), o2Data.c_str());
       Serial.print("o2 data to send: ");
       Serial.println(spo2);
       Serial.print("o2 data sent to mqtt: ");
       Serial.println(o2Data);
     }
-    if (validHeartRate) {
+    if (validHeartRate && beatAvg > 0) {
       client.publish(pulseTopic.c_str(), pulseData.c_str());
       Serial.print("pulse data to send: ");
       Serial.println(beatAvg);
