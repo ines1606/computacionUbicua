@@ -401,9 +401,9 @@ void sendDataMQTT(){
   gpsData += "\"longitude\": " + String(longitude, 2) + ",";
   gpsData += "\"latitude\": " + String(latitude, 2) + "}";
  
-  String pulseData = "{\"heartRate\": " + String(heartRate, 2) + "}";
+  String pulseData = "{\"heartRate\": " + String(heartRate) + "}";
 
-  String o2Data = "{\"oxygenLevel\": " + String(spo2, 2) + "}";
+  String o2Data = "{\"oxygenLevel\": " + String(spo2) + "}";
   
   // Send the data via MQTT
   if (client.connected()) {
