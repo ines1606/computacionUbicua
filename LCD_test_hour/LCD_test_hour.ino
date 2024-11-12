@@ -10,7 +10,7 @@ const char* ntpServer = "pool.ntp.org";
 const long  gmtOffset_sec = 3600;
 const int   daylightOffset_sec = 3600;
 
-LiquidCrystal_I2C lcd(0x27, 20, 4);//crear un objeto lcd (DIRECCIÓN pantalla, Tamaño x, Tamño y)
+LiquidCrystal_I2C lcd(0x27, 20, 4);//create an lcd object (ADDRESS display, Size x, Size y)
 
 void printLocalTime()
 {
@@ -24,6 +24,7 @@ void printLocalTime()
 }
 
 void setup() {
+  Serial.begin(115200);
 
   //connect to WiFi
   Serial.printf("Connecting to %s ", ssid);
@@ -46,20 +47,19 @@ void setup() {
   Wire.begin(26, 27);
   lcd.init();
   Serial.begin(115200);
-  Serial.println("\nPantalla LCD");
+  Serial.println("\nDisplay LCD");
 
-  // lcd.begin();//inicializar la pantalla lcd
-  Serial.println("Encendemos!");
-  lcd.backlight();//Encender la luz de fondo  
-  lcd.setCursor (0, 0);//poner el cursor en las coordenadas (x,y)
+  Serial.println("We ignite!");
+  lcd.backlight();//Turn on the backlight  
+  lcd.setCursor (0, 0);//place the cursor on the coordinates (x,y)
 
-  lcd.print(" Pantalla lcd 20x4 ");//muestra en la pantalla max 20 caracteres
-  lcd.setCursor (0, 1);//poner el cursor en las coordenadas (x,y)
-  lcd.print("*** esp32-wroom****");//muestra en la pantalla max 20 caracteres
+  lcd.print(" Display lcd 20x4 ");//display max 20 characters
+  lcd.setCursor (0, 1);//place the cursor on the coordinates (x,y)
+  lcd.print("*** esp32-wroom****");//display max 20 characters
   lcd.setCursor (0, 2);
-  lcd.print("Prueba pantalla");
+  lcd.print("Display test");
   lcd.setCursor (0, 3);
-  lcd.print("completa");
+  lcd.print("complete");
   
   delay (4000);
   lcd.clear();
@@ -72,13 +72,13 @@ void loop() {
     return;
   }
 
-  // Cambiar para que salga por la pantalla
+  // The date
   lcd.setCursor(0, 0); // column 0, row 0
   lcd.print(&timeinfo, "%A");
   lcd.setCursor(0, 1); // column 0, row 1
   lcd.print(&timeinfo, "%d %B %Y");
   
-  // Cambiar para que salga por la pantalla
+  // The hour
   lcd.setCursor(0, 2);
   lcd.print(&timeinfo, "%H:%M:%S");
 

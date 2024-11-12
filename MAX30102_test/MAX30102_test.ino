@@ -35,6 +35,7 @@ void setup()
     while (1);
   }
 
+  // Sensor configuration
   byte ledBrightness = 60; //Options: 0=Off to 255=50mA
   byte sampleAverage = 4; //Options: 1, 2, 4, 8, 16, 32
   byte ledMode = 2; //Options: 1 = Red only, 2 = Red + IR, 3 = Red + IR + Green
@@ -149,9 +150,13 @@ void loop()
     maxim_heart_rate_and_oxygen_saturation(irBuffer, bufferLength, redBuffer, &spo2, &validSPO2, &heartRate, &validHeartRate);
 
     // Print the results
-    Serial.print("Pulse: ");
-    Serial.print(beatAvg);
-    Serial.print(" BPM");
+    if (validHeartRate) {
+      Serial.print("Pulse: ");
+      Serial.print(beatAvg);
+      Serial.print(" BPM");
+    } else {
+      Serial.print("Heartrate not valid");
+    }
     if (validSPO2) {
       Serial.print(", SpO2: ");
       Serial.print(spo2);

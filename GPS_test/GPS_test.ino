@@ -20,20 +20,20 @@ void loop() {
   while (Serial2.available() > 0) {
     gps.encode(Serial2.read()); // Decode data from GPS
     if (gps.location.isUpdated()) {
-      Serial.print("Latitud: ");
+      Serial.print("Latitude: ");
       Serial.println(gps.location.lat(), 6); // 6 decimals for more accuracy
 
-      Serial.print("Longitud: ");
+      Serial.print("Longitude: ");
       Serial.println(gps.location.lng(), 6);
 
-      Serial.print("Altitud: ");
+      Serial.print("Altitude: ");
       Serial.print(gps.altitude.meters(), 6);
       Serial.println(" m");
 
-      Serial.print("Satélites: ");
+      Serial.print("Satellites: ");
       Serial.println(gps.satellites.value());
 
-      Serial.print("Precisión HDOP: ");
+      Serial.print("HDOP precision: ");
       Serial.println(gps.hdop.value());
 
       Serial.println();

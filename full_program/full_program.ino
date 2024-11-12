@@ -68,9 +68,8 @@ float beatsPerMinute;
 int beatAvg;
 
 //variables for accelerometer
-float ax;
-float ay; 
-float az;
+float ax, ay, az;
+float gx, gy, gz; 
 float accOffsetX = 0, accOffsetY = 0, accOffsetZ = 0;
 float gyroOffsetX = 0, gyroOffsetY = 0, gyroOffsetZ = 0;
 
@@ -342,14 +341,14 @@ void readAcc(){
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
   // compensate data taken from accelerometer
-  float ax = a.acceleration.x - accOffsetX;
-  float ay = a.acceleration.y - accOffsetY;
-  float az = a.acceleration.z - accOffsetZ;
+  ax = a.acceleration.x - accOffsetX;
+  ay = a.acceleration.y - accOffsetY;
+  az = a.acceleration.z - accOffsetZ;
 
   // compensate data taken from gyroscope
-  float gx = g.gyro.x - gyroOffsetX;
-  float gy = g.gyro.y - gyroOffsetY;
-  float gz = g.gyro.z - gyroOffsetZ;
+  gx = g.gyro.x - gyroOffsetX;
+  gy = g.gyro.y - gyroOffsetY;
+  gz = g.gyro.z - gyroOffsetZ;
 }
 
 void calibrateMPU6050() {
@@ -401,9 +400,9 @@ void sendDataMQTT(){
   gpsData += "\"longitude\": " + String(longitude, 2) + ",";
   gpsData += "\"latitude\": " + String(latitude, 2) + "}";
  
-  String pulseData = "{\"heartRate\": " + String(heartRate, 2) + "}";
+  String pulseData = "{\"heartRate\": " + String(beatAvg) + "}";
 
-  String o2Data = "{\"oxygenLevel\": " + String(spo2, 2) + "}";
+  String o2Data = "{\"oxygenLevel\": " + String(spo2) + "}";
   
   // Send the data via MQTT
   if (client.connected()) {
@@ -412,10 +411,36 @@ void sendDataMQTT(){
     String gpsTopic = "data/" + uniqueUserID + "/gps";
     String accTopic = "data/" + uniqueUserID + "/acc";
 
-    client.publish(o2Topic.c_str(), o2Data.c_str());
-    client.publish(pulseTopic.c_str(), pulseData.c_str());
+    if (validSPO2) {
+      client.publish(o2Topic.c_str(), o2Data.c_str());
+      Serial.print("o2 data to send: ");
+      Serial.println(spo2);
+      Serial.print("o2 data sent to mqtt: ");
+      Serial.println(o2Data);
+    }
+    if (validHeartRate) {
+      client.publish(pulseTopic.c_str(), pulseData.c_str());
+      Serial.print("pulse data to send: ");
+      Serial.println(beatAvg);
+      Serial.print("pule data sent to mqtt: ");
+      Serial.println(pulseData);
+    }
     client.publish(gpsTopic.c_str(), gpsData.c_str());
+    Serial.print("gps data to send: longitude = ");
+    Serial.print(longitude);
+    Serial.print(", latitude = ");
+    Serial.println(latitude);
+    Serial.print("gps data sent to mqtt: ");
+    Serial.println(gpsData);
     client.publish(accTopic.c_str(), accData.c_str());
+    Serial.print("acc data to send: ax = ");
+    Serial.print(ax);
+    Serial.print(", ay = ");
+    Serial.print(ay);
+    Serial.print(", az = ");
+    Serial.println(az);
+    Serial.print("acc data sent to mqtt: ");
+    Serial.println(accData);
     Serial.println("Sensor data sent via MQTT");
   } else {
     Serial.println("MQTT not connected");
@@ -433,7 +458,7 @@ void readButton(){
     delay(2000);  // Wait 2 sec to avoid bouncing
   }
   else {
-    Serial.println("Boton no presionado");
+    Serial.println("Button not pressed");
   }
 
 }

@@ -12,7 +12,7 @@ void setup() {
   Serial.begin(115200);
   Wire.begin(33, 25);
   if (!mpu.begin()) {
-    Serial.println("Error al encontrar el sensor MPU6050");
+    Serial.println("Error finding the MPU6050 sensor");
     while (1);
   }
   
@@ -34,10 +34,10 @@ void loop() {
   float gy = g.gyro.y - gyroOffsetY;
   float gz = g.gyro.z - gyroOffsetZ;
 
-  Serial.printf("Acelerómetro: ax=%.2f, ay=%.2f, az=%.2f\n", ax, ay, az);
-  Serial.printf("Giroscopio: gx=%.2f, gy=%.2f, gz=%.2f\n", gx, gy, gz);
+  Serial.printf("Accelerometer: ax=%.2f, ay=%.2f, az=%.2f\n", ax, ay, az);
+  Serial.printf("Gyroscope: gx=%.2f, gy=%.2f, gz=%.2f\n", gx, gy, gz);
 
-  delay(2000);
+  delay(1000);
 }
 
 void calibrateMPU6050() {
@@ -50,7 +50,6 @@ void calibrateMPU6050() {
   
   // Samples
   for (int i = 0; i < sampleSize; i++) {
-    Serial.print(1);
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
 
@@ -62,7 +61,7 @@ void calibrateMPU6050() {
     gyroSumY += g.gyro.y;
     gyroSumZ += g.gyro.z;
 
-    delay(10);  
+    delay(1);  
   }
 
   // Calcaulate the mid value 
@@ -74,7 +73,7 @@ void calibrateMPU6050() {
   gyroOffsetY = gyroSumY / sampleSize;
   gyroOffsetZ = gyroSumZ / sampleSize;
 
-  Serial.println("Calibración completada.");
-  Serial.printf("Compensación Acelerómetro: X=%.2f, Y=%.2f, Z=%.2f\n", accOffsetX, accOffsetY, accOffsetZ);
-  Serial.printf("Compensación Giroscopio: X=%.2f, Y=%.2f, Z=%.2f\n", gyroOffsetX, gyroOffsetY, gyroOffsetZ);
+  Serial.println("Completed calibration.");
+  Serial.printf("Accelerometer compensation: X=%.2f, Y=%.2f, Z=%.2f\n", accOffsetX, accOffsetY, accOffsetZ);
+  Serial.printf("Gyroscope compensation: X=%.2f, Y=%.2f, Z=%.2f\n", gyroOffsetX, gyroOffsetY, gyroOffsetZ);
 }
